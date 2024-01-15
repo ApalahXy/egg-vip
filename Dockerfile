@@ -1,34 +1,24 @@
-name: Publish Docker image
+FROM        --platform=$TARGETOS/$TARGETARCH node:lts-bullseye-slim
 
-on:
-  release:
-    types: [published]
+LABEL       author="David" maintainer="major@onedev.eu.org"
 
-jobs:
-  push_to_registry:
-    name: Push Docker image to Docker Hub
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out the repo
-        uses: actions/checkout@v4
-      
-      - name: Log in to Docker Hub
-        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
-        with:
-          images: my-docker-hub-namespace/my-docker-hub-repository
-      
-      - name: Build and push Docker image
-        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+RUN         apt update \
+            && apt -y install imagemagick neofetch webp sudo ffmpeg iproute2 git sqlite3 libsqlite3-dev python3 python3-dev ca-certificates dnsutils wget zip tar curl build-essential libtool iputils-ping libnss3 tini \
+            && useradd -m -d /home/container container
+
+RUN         npm install typescript ts-node @types/node --location=global
+
+RUN	    npm i npm@latest -g && \
+            npm i yarn -g && \
+	    npm i pm2 -g 
+
+USER        container
+ENV         USER=container HOME=/home/container
+WORKDIR     /home/container
+
+STOPSIGNAL SIGINT
+
+COPY        --chown=container:container ./../focal.sh /focal.sh
+RUN         chmod +x /focal.sh
+ENTRYPOINT    ["/usr/bin/tini", "-g", "--"]
+CMD         ["/focal.sh"]
